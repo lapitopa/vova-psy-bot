@@ -2,3 +2,4 @@ python-telegram-bot==20.0
 openai
 python-dotenv
 SpeechRecognition
+pydub
