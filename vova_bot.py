@@ -109,8 +109,7 @@ async def show_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
         words += entry["input"].lower().split()
     common = Counter(words).most_common(10)
     tags = [f"#{word}" for word, count in common if len(word) > 4]
-    await update.message.reply_text("Похоже, ты часто упоминаешь:\n" + " ".join(tags))  # fixed
-" + " ".join(tags))
+    " + " ".join(tags))
 
 # --- /выводы ---
 async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
