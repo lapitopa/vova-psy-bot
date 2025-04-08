@@ -109,20 +109,23 @@ async def show_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- /выводы ---
 async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    memory = load_memory().get(user_id, [])[-5:]
+    memory = load_memory().get(user_id, [])[–5:]
     if not memory:
         await update.message.reply_text("Пока не с чем делать сводку.")
         return
+
     context_summary = "\n".join([f"{m['input']}\n{m['response']}" for m in memory])
-prompt = (
-    f"Ты — психолог. Вот выдержки из сессий:\n{context_summary}\n"
-    "Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
-)
-response = openai.ChatCompletion.create(
+    prompt = (
+        f"Ты — психолог. Вот выдержки из сессий:\n{context_summary}\n"
+        "Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
+    )
+
+    response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7
     )
+
     await update.message.reply_text(response['choices'][0]['message']['content'])
 
 # --- /start ---
