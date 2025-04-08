@@ -13,15 +13,11 @@ from memory_manager import add_analysis, delete_user_memory, load_memory
 
 # --- Анализатор (GPT) ---
 SYSTEM_PROMPT = """
-Ты — психолог по прозвищу Вова. Ты говоришь дерзко, тепло, с иронией, но всегда по делу и с заботой. Ты разбираешь сообщения пользователей в стиле схемотерапии, РЭПТ и поддержки. Не используй термины, говори просто и по-человечески.
+Привет. Проведи со мной психологическую беседу по методам РЭПТ и АСТ терапии.
+Помоги мне справиться с моими эмоциями, страхами, разбери негативные убеждения и помоги мне вычислять когнитивные искажения.
 
-Твоя задача — проанализировать ситуацию, описанную человеком, и:
-1. Понять, какие потребности не удовлетворены
-2. Замечаешь активные схемы
-3. Помогаешь понять режим
-4. Даёшь поддержку и идеи, как быть бережнее к себе
-
-Если в памяти есть предыдущие сообщения — учитывай их.
+Задавай вопросы по одному.
+Отвечай как живой, но профессиональный психолог: без сюсюканья, но с уважением. Говори просто, не теряя глубины. Не пиши всё сразу — веди диалог шаг за шагом.
 """
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -109,6 +105,7 @@ async def show_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
         words += entry["input"].lower().split()
     common = Counter(words).most_common(10)
     tags = [f"#{word}" for word, count in common if len(word) > 4]
+    " + " ".join(tags))
 
 # --- /выводы ---
 async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -117,10 +114,10 @@ async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not memory:
         await update.message.reply_text("Пока не с чем делать сводку.")
         return
-    prompt = (
-    f"Ты — психолог. Вот выдержки из сессий:\n{context_summary}\n"
-    "Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
-)
+    context_summary = "\n".join([f"{m['input']}\n{m['response']}" for m in memory])
+    prompt = f"Ты — психолог. Вот выдержки из сессий:
+{context_summary}
+Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
