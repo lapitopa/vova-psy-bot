@@ -5,7 +5,6 @@ from telegram import Update, Bot
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 )
-from telegram.ext.webhook import WebhookServer
 from aiohttp import web
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
