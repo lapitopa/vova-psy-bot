@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-MEMORY_FILE = Path("analysis_memory.json")
+MEMORY_FILE = Path("/data/analysis_memory.json")
 
 def load_memory():
     if MEMORY_FILE.exists():
