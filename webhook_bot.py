@@ -73,5 +73,11 @@ async def start_webhook():
 
 # Запуск сервера
 if __name__ == "__main__":
+    import asyncio
     from aiohttp import web
-    web.run_app(asyncio.run(start_webhook()), host="0.0.0.0", port=10000)
+
+    async def main():
+        app = await start_webhook()
+        web.run_app(app, host="0.0.0.0", port=10000)
+
+    asyncio.run(main())
