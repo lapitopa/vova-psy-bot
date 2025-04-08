@@ -149,7 +149,7 @@ async def about_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 "
         "Всё, что ты пишешь — остаётся между нами."
     )
-    await update.message.reply_text(text)
+        await update.message.reply_text(text)
 
 
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -173,8 +173,6 @@ def main():
     application.add_handler(CommandHandler("поговорить", start_talk))
     application.add_handler(CommandHandler("очистить_историю", reset_history))
         application.add_handler(CommandHandler("сводка", show_summary))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_profile_step))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_dialog_step))
 
         application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
 
