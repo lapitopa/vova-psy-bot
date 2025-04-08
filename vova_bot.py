@@ -136,17 +136,11 @@ await update.message.reply_text(
 
 async def about_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
-        "Я — Вова. Не врач, не гуру, не маг. Я просто бот, который:
-"
-        "— помогает тебе разобраться в себе
-"
-        "— запоминает твои прошлые сообщения (только для тебя)
-"
-        "— ничего не публикует и никому не передаёт
-"
-        "— может стереть всё по команде /очистить_историю
-
-"
+        "Я — Вова. Не врач, не гуру, не маг. Я просто бот, который:"
+        "— помогает тебе разобраться в себе"
+        "— запоминает твои прошлые сообщения (только для тебя)"
+        "— ничего не публикует и никому не передаёт"
+        "— может стереть всё по команде /очистить_историю"
         "Всё, что ты пишешь — остаётся между нами."
     )
         await update.message.reply_text(text)
@@ -172,9 +166,9 @@ def main():
     application.add_handler(CommandHandler("о_вове", about_bot))
     application.add_handler(CommandHandler("поговорить", start_talk))
     application.add_handler(CommandHandler("очистить_историю", reset_history))
-        application.add_handler(CommandHandler("сводка", show_summary))
+    application.add_handler(CommandHandler("сводка", show_summary))
 
-        application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
 
     application.run_polling()
 
