@@ -132,7 +132,6 @@ await update.message.reply_text(
     "Помню, что ты пишешь — чтобы помогать точнее.\n"
     "Команды: /анализ, /поговорить, /выводы, /очистить_историю, /профиль."
 )
-    )
 
 
 async def about_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
