@@ -163,13 +163,13 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     application = ApplicationBuilder().token(os.getenv("TELEGRAM_TOKEN")).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("анализ", analyze_command))
-    application.add_handler(CommandHandler("профиль", start_profile))
-    application.add_handler(CommandHandler("о_вове", about_bot))
-    application.add_handler(CommandHandler("поговорить", start_talk))
-    application.add_handler(CommandHandler("очистить_историю", reset_history))
-    application.add_handler(CommandHandler("сводка", show_summary))
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("analyze", analyze_command))
+application.add_handler(CommandHandler("talk", start_talk))
+application.add_handler(CommandHandler("summary", show_summary))
+application.add_handler(CommandHandler("profile", start_profile))
+application.add_handler(CommandHandler("reset", reset_history))
+application.add_handler(CommandHandler("about", about_bot))
 
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
 
