@@ -1,123 +1,189 @@
-import logging
+
 import os
-from dotenv import load_dotenv
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from openai import OpenAI
-from telegram.constants import ChatAction
-import speech_recognition as sr
-from pydub import AudioSegment
-
-load_dotenv()
-
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+import openai
+from collections import Counter
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 )
 
-user_data = {}
+from profile_manager import load_profiles, save_profiles
+from dialog_handler import start_dialog as start_talk, handle_dialog_step
+from memory_manager import add_analysis, delete_user_memory, load_memory
 
-SYSTEM_PROMPT = (
-    "Ты – виртуальный психолог по имени Вова, общающийся в стиле «zapiskirizhego». Твоя манера общения:\n"
-    "- Дерзкая, честная, тёплая и ироничная, но всегда заботливая. Ты можешь слегка подстебнуть собеседника, шуточно и добродушно, но никогда не обесцениваешь его проблемы и чувства.\n"
-    "- Живой разговорный язык, без канцелярита и психологического жаргона. Общайся просто, как хороший друг-терапевт, с юмором, теплотой и сочувствием, избегая сухих терминов.\n\n"
-    "Твоя задача – реально помогать, как настоящий психолог. Для этого ты:\n"
-    "- Задаёшь мягкие наводящие вопросы, чтобы помочь человеку разобраться в сути его проблем и чувств.\n"
-    "- Помогаешь осознать и принять свои чувства, называешь их и показываешь, что в них нет ничего постыдного.\n"
-    "- Работаешь с убеждениями пользователя: мягко оспариваешь деструктивные мысли (например, «я неудачник»), предлагая посмотреть на ситуацию под другим углом.\n"
-    "- Поддерживаешь в трудные моменты – даёшь понять, что человек не один, что ты на его стороне.\n"
-    "- Помогаешь заметить его внутренние «режимы» и «схемы» (как в схемотерапии) – разные части личности (например, ранимый ребёнок, строгий критик и т.д.) и их неудовлетворённые потребности. Делаешь это ненавязчиво и понятным языком.\n"
-    "- Снижаешь вину и тревогу – через сочувствие, юмор и переосмысление ситуации помогаешь человеку почувствовать облегчение.\n"
-    "- Не даёшь советов свысока. Вместо этого делишься мыслями и предложениями на равных, вместе с пользователем размышляя над решением проблемы.\n"
-    "- Говоришь так, чтобы после твоих слов человеку хотелось жить дальше – вселяешь надежду, тепло и уверенность.\n\n"
-    "Подходы и стиль:\n"
-    "- Опирайся на принципы схемотерапии – мягко распознавай, когда говорит «внутренний критик» или «испуганный ребёнок» пользователя, и учитывай, какие глубинные потребности стоят за этими чувствами.\n"
-    "- Используй подход, основанный на сочувствии (Compassion-Focused Therapy) – проявляй понимание и сострадание, поощряй пользователя быть добрее к себе вместо самокритики.\n"
-    "- Придерживайся поддерживающей терапии – активно укрепляй веру человека в себя, помогай выстроить здоровый внутренний диалог (например, отвечать мягко на свой внутренний негативный голос).\n"
-    "- Твой язык должен быть валидирующий и эмпатичный – признавай переживания пользователя и показывай, что они нормальны и значимы.\n"
-    "- Используй метафоры, образы и юмор, чтобы объяснить сложные вещи простыми словами и разрядить обстановку, но всегда к месту и тактично.\n\n"
-    "Главная цель: человеку должно стать легче от твоих сообщений. Пусть он почувствует себя понятым, принятым и не одиноким. Тепло, поддержка и искренность важнее умных терминов или строгого тона.\n\n"
-    "Язык: если пользователь пишет по-русски — отвечай по-русски. Если по-английски — переключайся на английский и говори в таком же стиле."
-)
+# --- Анализатор (GPT) ---
+SYSTEM_PROMPT = """
+Ты — психолог по прозвищу Вова. Ты говоришь дерзко, тепло, с иронией, но всегда по делу и с заботой. Ты разбираешь сообщения пользователей в стиле схемотерапии, РЭПТ и поддержки. Не используй термины, говори просто и по-человечески.
 
-def get_memory_for(user_id):
-    memory = user_data.get(user_id, {}).get("memory", [])
-    return [{"role": "system", "content": SYSTEM_PROMPT}] + memory
+Твоя задача — проанализировать ситуацию, описанную человеком, и:
+1. Понять, какие потребности не удовлетворены
+2. Замечаешь активные схемы
+3. Помогаешь понять режим
+4. Даёшь поддержку и идеи, как быть бережнее к себе
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [["🧠 Психотерапия от Вовы"], ["🧹 Очистить историю чата"]]
-    await update.message.reply_text(
-        "Я Вова. Хочешь поговорить? Нажимай кнопку или пиши, с чем пришёл.",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+Если в памяти есть предыдущие сообщения — учитывай их.
+"""
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def build_context_prompt(user_id: int, current_input: str) -> list:
+    memory = load_memory()
+    user_key = str(user_id)
+    history = memory.get(user_key, [])[-3:]
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for entry in history:
+        messages.append({"role": "user", "content": entry["input"]})
+        messages.append({"role": "assistant", "content": entry["response"]})
+
+    messages.append({"role": "user", "content": current_input})
+    return messages
+
+def analyze_message(user_id: int, user_message: str) -> str:
+    messages = build_context_prompt(user_id, user_message)
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=messages,
+        temperature=0.8
     )
+    return response['choices'][0]['message']['content']
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# --- Профили ---
+user_profiles = load_profiles()
+
+async def start_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    text = update.message.text.strip()
+    user_profiles[user_id] = {"step": "ask_name"}
+    save_profiles(user_profiles)
 
-    if text == "🧹 Очистить историю чата":
-        user_data[user_id] = {"memory": []}
-        await update.message.reply_text("История очищена. Начнём с чистого листа.")
+    await update.message.reply_text("Окей, давай чуть настроимся. Как мне тебя звать? Или можешь пропустить — мне норм.")
+
+async def handle_profile_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    profile = user_profiles.get(user_id)
+
+    if not profile:
         return
 
-    if user_id not in user_data:
-        user_data[user_id] = {"memory": []}
+    step = profile.get("step")
+    if step == "ask_name":
+        name = update.message.text.strip()
+        if len(name.split()) > 2 or any(char.isdigit() for char in name):
+            await update.message.reply_text("Слушай, это не похоже на имя. Давай без.")
+            user_profiles[user_id] = {"name": None}
+        else:
+            user_profiles[user_id] = {"name": name}
+            await update.message.reply_text(f"Принято. Буду звать тебя {name}. Или забуду.")
+        save_profiles(user_profiles)
+        await update.message.reply_text("Профиль сохранён. Пиши, когда будешь готова.")
 
-    memory = user_data[user_id]["memory"]
+# --- Команды анализа ---
+async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_text = update.message.text.replace("/анализ", "").strip()
+    if not user_text:
+        await update.message.reply_text("Пиши, что у тебя внутри — я разложу по полочкам.")
+        return
+    response = analyze_message(user_id, user_text)
+    add_analysis(user_id, user_text, response)
+    await update.message.reply_text(response)
 
-    if "name" not in user_data[user_id]:
-        words = text.split()
-        if len(words) <= 2:
-            user_data[user_id]["name"] = text
-            await update.message.reply_text(f"Окей, буду звать тебя {text}. Рассказывай, что у тебя на душе.")
-            return
+# --- /очистить_историю ---
+async def reset_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    deleted = delete_user_memory(user_id)
+    if deleted:
+        await update.message.reply_text("Окей. Всё забыто. Новый лист — чистый.")
+    else:
+        await update.message.reply_text("У меня и не было ничего твоего. Всё чисто.")
 
-    memory.append({"role": "user", "content": text})
+# --- /теги ---
+async def show_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    memory = load_memory().get(user_id, [])
+    if not memory:
+        await update.message.reply_text("Пока нечего тэгать. Надо накидать мыслей.")
+        return
+    words = []
+    for entry in memory:
+        words += entry["input"].lower().split()
+    common = Counter(words).most_common(10)
+    tags = [f"#{word}" for word, count in common if len(word) > 4]
+    await update.message.reply_text("Похоже, ты часто упоминаешь:
+" + " ".join(tags))
 
-    response = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=get_memory_for(user_id)
+# --- /выводы ---
+async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    memory = load_memory().get(user_id, [])[-5:]
+    if not memory:
+        await update.message.reply_text("Пока не с чем делать сводку.")
+        return
+    context_summary = "\n".join([f"{m['input']}\n{m['response']}" for m in memory])
+    prompt = f"Ты — психолог. Вот выдержки из сессий:
+{context_summary}
+Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7
+    )
+    await update.message.reply_text(response['choices'][0]['message']['content'])
+
+# --- /start ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Я Вова. Говорю жёстко, но с заботой. Помню, что ты пишешь — чтобы помогать точнее.
+"
+        "Команды: /анализ, /поговорить, /теги, /выводы, /очистить_историю, /профиль."
     )
 
-    bot_reply = response.choices[0].message.content
-    memory.append({"role": "assistant", "content": bot_reply})
-    await update.message.reply_text(bot_reply)
 
-async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    try:
-        file = await context.bot.get_file(update.message.voice.file_id)
-        file_path = f"voice_{user_id}.ogg"
-        await file.download_to_drive(file_path)
+async def about_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "Я — Вова. Не врач, не гуру, не маг. Я просто бот, который:
+"
+        "— помогает тебе разобраться в себе
+"
+        "— запоминает твои прошлые сообщения (только для тебя)
+"
+        "— ничего не публикует и никому не передаёт
+"
+        "— может стереть всё по команде /очистить_историю
 
-        audio = AudioSegment.from_file(file_path)
-        wav_path = file_path.replace(".ogg", ".wav")
-        audio.export(wav_path, format="wav")
+"
+        "Всё, что ты пишешь — остаётся между нами."
+    )
+    await update.message.reply_text(text)
 
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(wav_path) as source:
-            audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data, language="ru-RU")
 
-        update.message.text = text
-        await handle_message(update, context)
-
-    except Exception as e:
-        await update.message.reply_text("Произошла ошибка при обработке голосового сообщения.")
-        print(f"[ERROR] Voice message processing failed: {e}")
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.lower().strip()
+    if text == "анализ":
+        await analyze_command(update, context)
+    elif text == "поговорить":
+        await start_talk(update, context)
+    elif text == "выводы":
+        await show_summary(update, context)
+    elif text == "очистить историю":
+        await reset_history(update, context)
 
 def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
-    print("Бот запущен...")
-    app.run_polling()
+    application = ApplicationBuilder().token(os.getenv("TELEGRAM_TOKEN")).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("анализ", analyze_command))
+    application.add_handler(CommandHandler("профиль", start_profile))
+    application.add_handler(CommandHandler("о_вове", about_bot))
+    application.add_handler(CommandHandler("поговорить", start_talk))
+    application.add_handler(CommandHandler("очистить_историю", reset_history))
+        application.add_handler(CommandHandler("сводка", show_summary))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_profile_step))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_dialog_step))
+
+        application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
+
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
