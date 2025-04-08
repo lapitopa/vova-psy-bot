@@ -123,7 +123,7 @@ response = openai.ChatCompletion.create(
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7
     )
-await update.message.reply_text(response['choices'][0]['message']['content'])
+    await update.message.reply_text(response['choices'][0]['message']['content'])
 
 # --- /start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
