@@ -76,8 +76,5 @@ if __name__ == "__main__":
     import asyncio
     from aiohttp import web
 
-    async def main():
-        app = await start_webhook()
-        web.run_app(app, host="0.0.0.0", port=10000)
-
-    asyncio.run(main())
+    app = asyncio.run(start_webhook())
+    web.run_app(app, host="0.0.0.0", port=10000)
