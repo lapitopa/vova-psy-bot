@@ -123,11 +123,11 @@ response = openai.ChatCompletion.create(
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7
     )
-    await update.message.reply_text(response['choices'][0]['message']['content'])
+await update.message.reply_text(response['choices'][0]['message']['content'])
 
 # --- /start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+await update.message.reply_text(
         "Я Вова. Говорю жёстко, но с заботой. Помню, что ты пишешь — чтобы помогать точнее.
 "
         "Команды: /анализ, /поговорить, /теги, /выводы, /очистить_историю, /профиль."
