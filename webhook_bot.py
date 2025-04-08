@@ -5,7 +5,7 @@ import asyncio
 from aiohttp import web
 from telegram import Update, Bot
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+    ApplicationBuilder, CommandHandler, ContextTypes
 )
 
 # Загрузка переменных
@@ -14,18 +14,16 @@ OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-# Настройка GPT
+# Настройка GPT и бота
 openai.api_key = OPENAI_KEY
 bot = Bot(TOKEN)
-
-# Telegram приложение
 application = ApplicationBuilder().token(TOKEN).build()
 
-# Команда /start
+# Хендлер /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Я Вова. Пиши /analyze и мы начнём. Я тут.")
 
-# Команда /analyze
+# Хендлер /analyze
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.replace("/analyze", "").strip()
     if not user_message:
@@ -35,7 +33,7 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt = (
         f"Ты психотерапевт. Проведи со мной психологическую беседу по методам РЭПТ и АСТ терапии.\n"
         f"Помоги мне справиться с моими эмоциями, страхами, разбери негативные убеждения и помоги мне вычислять когнитивные искажения.\n\n"
-        f"Начни с того, чтобы уточнить мой запрос и главную проблему {user_message}"
+        f"Начни с того, чтобы уточнить мой запрос и главную проблему: {user_message}"
     )
 
     response = openai.ChatCompletion.create(
@@ -45,16 +43,19 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
 
-# Добавление хендлеров
+# Регистрируем команды
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("analyze", analyze_command))
 
-# Webhook обработчик
+# Обработчик входящих запросов от Telegram
 async def handle(request):
-    data = await request.json()
-    update = Update.de_json(data, bot)
-    await application.process_update(update)
-    return web.Response(text="ok")
+    try:
+        data = await request.json()
+        update = Update.de_json(data, bot)
+        await application.process_update(update)
+        return web.Response(text="ok")
+    except Exception as e:
+        return web.Response(text=f"Error: {e}", status=500)
 
 # Установка вебхука
 async def setup_webhook():
@@ -62,7 +63,7 @@ async def setup_webhook():
     await bot.delete_webhook()
     await bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH)
 
-# Старт приложения
+# Запуск aiohttp-приложения
 async def start_webhook():
     await setup_webhook()
     await application.initialize()
@@ -70,5 +71,7 @@ async def start_webhook():
     app.router.add_post(WEBHOOK_PATH, handle)
     return app
 
+# Запуск сервера
 if __name__ == "__main__":
+    from aiohttp import web
     web.run_app(asyncio.run(start_webhook()), host="0.0.0.0", port=10000)
