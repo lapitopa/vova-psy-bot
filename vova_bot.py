@@ -109,7 +109,7 @@ async def show_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- /выводы ---
 async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    memory = load_memory().get(user_id, [])[–5:]
+    memory = load_memory().get(user_id, [])[-5:]
     if not memory:
         await update.message.reply_text("Пока не с чем делать сводку.")
         return
