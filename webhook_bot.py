@@ -57,13 +57,10 @@ async def handle(request):
     return web.Response(text="ok")
 
 # Установка вебхука
-async def start_webhook():
-    await bot.initialize()  # ← обязательно!
+async def setup_webhook():
+    await bot.initialize()
     await bot.delete_webhook()
     await bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH)
-    app = web.Application()
-    app.router.add_post(WEBHOOK_PATH, handle)
-    return app
 
 # Старт приложения
 async def start_webhook():
