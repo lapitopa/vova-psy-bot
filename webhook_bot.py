@@ -62,5 +62,6 @@ async def start_webhook():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(start_webhook())
-    app.run_webhook(listen="0.0.0.0", port=10000, url_path=WEBHOOK_PATH)
+    from aiohttp import web
+
+    asyncio.run(web._run_app(start_webhook(), host="0.0.0.0", port=10000))
