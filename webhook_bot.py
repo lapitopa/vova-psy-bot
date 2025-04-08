@@ -58,6 +58,7 @@ async def handle(request):
 
 # Установка вебхука
 async def setup_webhook():
+    await bot.initialize()
     await bot.delete_webhook()
     await bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH)
 
