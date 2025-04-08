@@ -64,6 +64,7 @@ async def setup_webhook():
 # Старт приложения
 async def start_webhook():
     await setup_webhook()
+    await application.initialize()
     app = web.Application()
     app.router.add_post(WEBHOOK_PATH, handle)
     return app
