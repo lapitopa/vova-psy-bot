@@ -171,7 +171,7 @@ application.add_handler(CommandHandler("profile", start_profile))
 application.add_handler(CommandHandler("reset", reset_history))
 application.add_handler(CommandHandler("about", about_bot))
 
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
+application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
 
     application.run_polling()
 
