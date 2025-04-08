@@ -146,7 +146,7 @@ async def about_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "— может стереть всё по команде /очистить_историю"
         "Всё, что ты пишешь — остаётся между нами."
     )
-await update.message.reply_text(text)
+    await update.message.reply_text(text)
 
 
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
