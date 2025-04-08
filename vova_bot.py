@@ -114,9 +114,10 @@ async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Пока не с чем делать сводку.")
         return
     context_summary = "\n".join([f"{m['input']}\n{m['response']}" for m in memory])
-    prompt = f"Ты — психолог. Вот выдержки из сессий:
-{context_summary}
-Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
+prompt = (
+    f"Ты — психолог. Вот выдержки из сессий:\n{context_summary}\n"
+    "Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
+)
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
