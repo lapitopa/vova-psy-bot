@@ -118,7 +118,7 @@ prompt = (
     f"Ты — психолог. Вот выдержки из сессий:\n{context_summary}\n"
     "Сделай краткую сводку: какие темы поднимаются, какие эмоции, и что важно помнить человеку?"
 )
-    response = openai.ChatCompletion.create(
+response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7
