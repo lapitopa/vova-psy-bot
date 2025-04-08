@@ -173,7 +173,7 @@ application.add_handler(CommandHandler("about", about_bot))
 
 application.add_handler(MessageHandler(filters.TEXT & filters.Regex('^(Анализ|Поговорить|Выводы|Очистить историю)$'), handle_buttons))
 
-    application.run_polling()
+application.run_polling()
 
 if __name__ == "__main__":
     main()
