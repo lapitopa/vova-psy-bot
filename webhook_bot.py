@@ -1,29 +1,29 @@
-
 import os
 import openai
-import asyncio
-from aiohttp import web
 from telegram import Update, Bot
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes
 )
+from aiohttp import web
+from dotenv import load_dotenv
 
-# Загрузка переменных
+load_dotenv()
+
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-# Настройка GPT и бота
 openai.api_key = OPENAI_KEY
-bot = Bot(TOKEN)
-application = ApplicationBuilder().token(TOKEN).build()
 
-# Хендлер /start
+bot = Bot(token=TOKEN)
+app = ApplicationBuilder().token(TOKEN).build()
+
+# Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Я Вова. Пиши /analyze и мы начнём. Я тут.")
 
-# Хендлер /analyze
+# Команда /analyze
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.replace("/analyze", "").strip()
     if not user_message:
@@ -43,38 +43,28 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
 
-# Регистрируем команды
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("analyze", analyze_command))
+# Добавляем хендлеры
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("analyze", analyze_command))
 
-# Обработчик входящих запросов от Telegram
-async def handle(request):
-    try:
-        data = await request.json()
-        update = Update.de_json(data, bot)
-        await application.process_update(update)
-        return web.Response(text="ok")
-    except Exception as e:
-        return web.Response(text=f"Error: {e}", status=500)
+# Aiohttp обработка
+async def webhook_handler(request):
+    data = await request.json()
+    update = Update.de_json(data, bot)
+    await app.process_update(update)
+    return web.Response()
 
-# Установка вебхука
-async def setup_webhook():
-    await bot.initialize()
+# Настройка вебхука
+async def on_startup(app_):
     await bot.delete_webhook()
     await bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH)
+    await app.initialize()
 
-# Запуск aiohttp-приложения
-async def start_webhook():
-    await setup_webhook()
-    await application.initialize()
-    app = web.Application()
-    app.router.add_post(WEBHOOK_PATH, handle)
-    return app
+# Подключение маршрута
+aio_app = web.Application()
+aio_app.router.add_post(WEBHOOK_PATH, webhook_handler)
+aio_app.on_startup.append(on_startup)
 
-# Запуск сервера
+# Запуск
 if __name__ == "__main__":
-    import asyncio
-    from aiohttp import web
-
-    app = asyncio.run(start_webhook())
-    web.run_app(app, host="0.0.0.0", port=10000)
+    web.run_app(aio_app, host="0.0.0.0", port=10000)
