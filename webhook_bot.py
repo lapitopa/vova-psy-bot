@@ -7,6 +7,8 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes
 )
 
+import json
+
 # Загрузка переменных
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
@@ -49,13 +51,24 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("analyze", analyze_command))
 
+# Обработка входящих POST-запросов от Telegram
+async def handle_webhook(request):
+    try:
+        data = await request.json()
+        update = Update.de_json(data, bot)
+        await application.process_update(update)
+    except Exception as e:
+        print(f"Ошибка обработки вебхука: {e}")
+    return web.Response()
+
 # Асинхронная инициализация
 async def main():
     await application.initialize()
     await application.start()
     await application.bot.set_webhook(url=WEBHOOK_URL)
+
     app = web.Application()
-    app.router.add_post(WEBHOOK_PATH, application.webhook_handler())
+    app.router.add_post(WEBHOOK_PATH, handle_webhook)
     return app
 
 # Точка входа
