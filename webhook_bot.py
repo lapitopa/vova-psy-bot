@@ -45,9 +45,11 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(reply)
 
+# Добавление хендлеров
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("analyze", analyze_command))
 
+# Асинхронная инициализация
 async def main():
     await application.initialize()
     await application.start()
@@ -56,6 +58,7 @@ async def main():
     app.router.add_post(WEBHOOK_PATH, application.webhook_handler())
     return app
 
+# Точка входа
 if __name__ == "__main__":
     app = asyncio.run(main())
     web.run_app(app, host="0.0.0.0", port=10000)
