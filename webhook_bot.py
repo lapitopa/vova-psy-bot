@@ -1,7 +1,5 @@
 import os
 import openai
-import asyncio
-from aiohttp import web
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes
@@ -10,8 +8,7 @@ from telegram.ext import (
 # Загрузка переменных
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-WEBHOOK_PATH = "/webhook"
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Должен быть https://<domain>/webhook
 
 # Настройка GPT
 openai.api_key = OPENAI_KEY
@@ -48,27 +45,10 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("analyze", analyze_command))
 
-# Обработка входящих POST-запросов от Telegram
-async def handle_webhook(request):
-    try:
-        data = await request.json()
-        update = Update.de_json(data, application.bot)
-        await application.process_update(update)
-    except Exception as e:
-        print(f"Ошибка обработки вебхука: {e}")
-    return web.Response()
-
-# Асинхронная инициализация
-async def main():
-    await application.initialize()
-    await application.start()
-    await application.bot.set_webhook(url=WEBHOOK_URL)
-
-    app = web.Application()
-    app.router.add_post(WEBHOOK_PATH, handle_webhook)
-    return app
-
-# Точка входа
+# Запуск бота с webhook
 if __name__ == "__main__":
-    app = asyncio.run(main())
-    web.run_app(app, host="0.0.0.0", port=10000)
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=10000,
+        webhook_url=WEBHOOK_URL,
+    )
