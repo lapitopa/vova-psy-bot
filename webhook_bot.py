@@ -2,12 +2,10 @@ import os
 import openai
 import asyncio
 from aiohttp import web
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes
 )
-
-import json
 
 # Загрузка переменных
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -17,7 +15,6 @@ WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 # Настройка GPT
 openai.api_key = OPENAI_KEY
-bot = Bot(TOKEN)
 
 # Telegram приложение
 application = ApplicationBuilder().token(TOKEN).build()
@@ -55,7 +52,7 @@ application.add_handler(CommandHandler("analyze", analyze_command))
 async def handle_webhook(request):
     try:
         data = await request.json()
-        update = Update.de_json(data, bot)
+        update = Update.de_json(data, application.bot)
         await application.process_update(update)
     except Exception as e:
         print(f"Ошибка обработки вебхука: {e}")
