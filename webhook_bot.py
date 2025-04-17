@@ -37,7 +37,7 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Пиши, что у тебя внутри — я разложу по полочкам.")
         return
 
-    prompt = f"""Ты психотерапевт. Проведи со мной сессию в стиле современного сочувствующего терапевта. Я сказал: "{user_message}""""
+    prompt = f"""Ты психотерапевт. Проведи со мной сессию в стиле современного сочувствующего терапевта. Я сказал: "{user_message}\""""
 
     try:
         response = openai.ChatCompletion.create(
