@@ -397,21 +397,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     message_text = update.message.text
     
-    # Обработка кнопок с эмодзи
+       # Обработка кнопок с эмодзи
     if message_text == "🧠 Анализ":
-        update.message.text = "/analyze"
         await analyze_command(update, context)
         return
     elif message_text == "💬 Поговорить":
-        update.message.text = "/talk"
         await talk_command(update, context)
         return
     elif message_text == "📊 Выводы":
-        update.message.text = "/summary"
         await summary_command(update, context)
         return
     elif message_text == "🗑️ Очистить историю":
-        update.message.text = "/clear"
         await clear_history_command(update, context)
         return
     
