@@ -1,8 +1,8 @@
 import os
 import logging
-import openai
 import random
-from telegram import Update, ReplyKeyboardMarkup
+from openai import OpenAI
+from telegram import Update, ReplyKeyboardMarkup, BotCommand
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, 
     ContextTypes, filters
@@ -26,7 +26,7 @@ OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 # Настройка OpenAI
-openai.api_key = OPENAI_KEY
+client = OpenAI(api_key=OPENAI_KEY)
 
 # Telegram приложение
 application = ApplicationBuilder().token(TOKEN).build()
@@ -34,16 +34,20 @@ application = ApplicationBuilder().token(TOKEN).build()
 # Словарь для отслеживания состояния анализа пользователей
 user_analysis_state = {}
 
+# Модели для разных типов запросов
+MODEL_SHORT = "gpt-3.5-turbo"  # Для коротких ответов и простых запросов
+MODEL_ANALYSIS = "gpt-4"        # Только для глубокого анализа
+
 # Функция для создания уникальных ответов с помощью OpenAI
-async def generate_response(prompt, temperature=0.88, max_tokens=250):
+async def generate_response(prompt, temperature=0.88, max_tokens=250, model=MODEL_SHORT):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
+        response = client.chat.completions.create(
+            model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=temperature,
             max_tokens=max_tokens
         )
-        return response['choices'][0]['message']['content']
+        return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Ошибка при запросе к OpenAI: {e}")
         fallback_responses = [
@@ -55,9 +59,24 @@ async def generate_response(prompt, temperature=0.88, max_tokens=250):
         ]
         return random.choice(fallback_responses)
 
+# Установка меню команд для бота
+async def setup_commands(context: ContextTypes.DEFAULT_TYPE):
+    commands = [
+        BotCommand("start", "Начать разговор с Вовой"),
+        BotCommand("analyze", "Разбор по методу РЭПТ и АСТ терапии"),
+        BotCommand("talk", "Терапевтично поболтать"),
+        BotCommand("summary", "Личный анализ и направления роста"),
+        BotCommand("clear", "Начать с чистого листа"),
+        BotCommand("help", "Подсказка, кто такой Вова и как с ним общаться")
+    ]
+    await context.bot.set_my_commands(commands)
+
 # Команда /start - начальное приветствие и клавиатура
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Получена команда /start от пользователя {update.effective_user.id}")
+    
+    # Устанавливаем команды для бота если еще не установлены
+    await setup_commands(context)
     
     prompt = """Ты психотерапевт по имени Вова, который пишет в стиле популярного инстаграм-блогера @zapiskirizhego.
     Напиши оригинальное и дружелюбное приветствие для пользователя, который только что запустил тебя.
@@ -71,15 +90,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     - Говоришь как умный друг, а не как официальный психотерапевт
     
     В конце напомни, что пользователь может использовать следующие команды:
-    • /analyze — разбор по методу РЭПТ и АСТ терапии
-    • /talk — терапевтично поболтать
-    • /summary — личный анализ и направления роста
-    • /clear — стереть сохранённую информацию
+    • /analyze или кнопку "🧠 Анализ" — разбор по методу РЭПТ и АСТ терапии
+    • /talk или кнопку "💬 Поговорить" — терапевтично поболтать
+    • /summary или кнопку "📊 Выводы" — личный анализ и направления роста
+    • /clear или кнопку "🗑️ Очистить историю" — начать с чистого листа
 
     Ответ должен быть не более 4-5 предложений и звучать естественно."""
     
     welcome_text = await generate_response(prompt)
     await update.message.reply_text(welcome_text, reply_markup=get_main_keyboard())
+
+# Команда /help - объяснение как работает бот
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"Получена команда /help от пользователя {update.effective_user.id}")
+    
+    prompt = """Ты психотерапевт по имени Вова в стиле инстаграм-блогера @zapiskirizhego.
+    Напиши понятное объяснение, как пользоваться ботом и какие у него есть функции.
+    
+    Включи объяснение о:
+    1. Кто такой Вова (психотерапевтический бот с неформальным стилем)
+    2. Как работают основные команды:
+       - /analyze или кнопка "🧠 Анализ" — разбор по методу РЭПТ и АСТ терапии
+       - /talk или кнопка "💬 Поговорить" — терапевтично поболтать
+       - /summary или кнопка "📊 Выводы" — личный анализ и направления роста
+       - /clear или кнопка "🗑️ Очистить историю" — начать с чистого листа
+    3. Что Вова не является заменой настоящего психотерапевта
+    
+    Пиши в своем характерном стиле — прямолинейно, с небольшой дерзостью, но заботливо.
+    Используй разговорный язык и короткие предложения."""
+    
+    help_text = await generate_response(prompt, temperature=0.85, max_tokens=500)
+    await update.message.reply_text(help_text)
 
 # Команда /analyze - начало аналитической беседы
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -198,7 +239,7 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             Общая длина: 250-350 слов, разделенных на 3-4 абзаца."""
             
-            final_analysis = await generate_response(analysis_prompt, temperature=0.85, max_tokens=800)
+            final_analysis = await generate_response(analysis_prompt, temperature=0.85, max_tokens=800, model=MODEL_ANALYSIS)
             user_analysis_state[user_id]["history"].append({"role": "assistant", "content": final_analysis})
             
             # Сохраняем весь анализ в памяти
@@ -291,7 +332,7 @@ async def summary_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Общая длина: 250-350 слов, разделенных на 3-4 абзаца."""
     
     try:
-        reply = await generate_response(prompt, temperature=0.87, max_tokens=800)
+        reply = await generate_response(prompt, temperature=0.87, max_tokens=800, model=MODEL_SHORT)
     except Exception as e:
         error_prompt = """Напиши короткое сообщение в стиле @zapiskirizhego, 
         объясняющее, что произошла техническая ошибка и анализ не удался. 
@@ -351,9 +392,28 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     about_text = await generate_response(prompt, temperature=0.87, max_tokens=450)
     await update.message.reply_text(about_text)
 
-# Обработка обычных сообщений в контексте диалога или анализа
+# Обработка обычных сообщений и нажатий на кнопки
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    message_text = update.message.text
+    
+    # Обработка кнопок с эмодзи
+    if message_text == "🧠 Анализ":
+        update.message.text = "/analyze"
+        await analyze_command(update, context)
+        return
+    elif message_text == "💬 Поговорить":
+        update.message.text = "/talk"
+        await talk_command(update, context)
+        return
+    elif message_text == "📊 Выводы":
+        update.message.text = "/summary"
+        await summary_command(update, context)
+        return
+    elif message_text == "🗑️ Очистить историю":
+        update.message.text = "/clear"
+        await clear_history_command(update, context)
+        return
     
     # Если пользователь в процессе диалога
     if user_id in user_dialog_state:
@@ -379,7 +439,7 @@ def register_handlers():
     application.add_handler(CommandHandler("summary", summary_command))
     application.add_handler(CommandHandler("clear", clear_history_command))
     application.add_handler(CommandHandler("about", about_command))
-    application.add_handler(CommandHandler("help", start))  # help показывает то же, что и start
+    application.add_handler(CommandHandler("help", help_command))
     
     # Обработка обычных сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
